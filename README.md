@@ -28,6 +28,6 @@ wgetがない場合は **yum -y install wget** でインストールしてくだ
 
 **sh /home/ユーザー名/ファイル名.sh** ユーザー階層にある場合（rootユーザー実行時）
 
-## [go_latest.sh](https://github.com/site-lab/apache/blob/master/go_latest.sh)
+## [go_latest.sh](https://github.com/site-lab/language/blob/master/go_latest.sh)
 ### 実行内容
 * Go言語の最新版をインストール
