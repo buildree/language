@@ -98,11 +98,6 @@ EOF
         end_message
 
 
-        #ユーザー切り替え
-        #start_message
-        #echo "ユーザーを切り替えます"
-        #sudo su -u centos
-        #end_message
 
         #サンプルファイル作成
         start_message
