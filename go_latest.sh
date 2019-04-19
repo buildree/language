@@ -87,9 +87,6 @@ if [ -e /etc/redhat-release ]; then
         cat <<EOF >/root/pass.txt
 ログインユーザー
 centos = ${PASSWORD}
-データベース
-root = ${RPASSWORD}
-centos = ${UPASSWORD}
 EOF
 
         #コピー作成
