@@ -31,3 +31,7 @@ wgetがない場合は **yum -y install wget** でインストールしてくだ
 ## [go_latest.sh](https://github.com/site-lab/language/blob/master/go_latest.sh)
 ### 実行内容
 * Go言語の最新版をインストール
+
+## [python.sh](https://github.com/site-lab/language/blob/master/python.sh)
+### 実行内容
+* Python3.6.7のインストール
