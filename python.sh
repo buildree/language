@@ -38,9 +38,9 @@ if [ -e /etc/redhat-release ]; then
         yum -y install epel-release
         end_message
 
-        #gitリポジトリのインストール
+        #gitなど必要な物をインストール
         start_message
-        yum -y install git
+        yum install -y gcc gcc-c++ make git openssl-devel zlib-devel readline-devel sqlite-devel bzip2-devel
         end_message
 
 
