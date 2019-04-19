@@ -114,9 +114,6 @@ EOF
         cat <<EOF >/root/pass.txt
 ログインユーザー
 centos = ${PASSWORD}
-データベース
-root = ${RPASSWORD}
-centos = ${UPASSWORD}
 EOF
 
         #コピー作成
@@ -139,8 +136,8 @@ EOF
         start_message
         echo "実行します"
         echo "python hello.py"
-        #su -l centos -c "python hello.py"
-        python hello.py
+        su -l centos -c "python hello.py"
+        #python hello.py
         end_message
 
         cat <<EOF
