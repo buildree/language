@@ -40,7 +40,7 @@ if [ -e /etc/redhat-release ]; then
 
         #gitなど必要な物をインストール
         start_message
-        yum install -y gcc gcc-c++ make git openssl-devel zlib-devel readline-devel sqlite-devel bzip2-devel
+        yum install -y gcc gcc-c++ make git openssl-devel zlib-devel readline-devel sqlite-devel bzip2-devel libffi-devel
         end_message
 
 
@@ -74,10 +74,10 @@ EOF
         start_message
         echo "pythonのリスト確認"
         pyenv install --list
-        echo "python3.6.7のインストール"
-        env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.6.7
+        echo "python3.7.3のインストール"
+        env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.3
         echo "pythonの設定を変更"
-        pyenv global 3.6.7
+        pyenv global 3.7.3
         end_message
 
         #pythonの確認
