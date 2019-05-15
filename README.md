@@ -34,4 +34,4 @@ wgetがない場合は **yum -y install wget** でインストールしてくだ
 
 ## [python.sh](https://github.com/site-lab/language/blob/master/python.sh)
 ### 実行内容
-* Python3.6.7のインストール
+* Python3.7.3のインストール
