@@ -5,7 +5,7 @@
 <<COMMENT
 作成者：サイトラボ
 URL：https://www.site-lab.jp/
-URL：https://www.logw.jp/
+URL：https://buildree.com/
 
 Pythonのインストールを行います
 
