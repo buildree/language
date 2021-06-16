@@ -31,7 +31,7 @@ if [ -e /etc/redhat-release ]; then
     DIST_VER=`cat /etc/redhat-release | sed -e "s/.*\s\([0-9]\)\..*/\1/"`
 
     if [ $DIST = "redhat" ];then
-      if [ $DIST_VER = "7" ];then
+      if [ $DIST_VER = "7" -o $DIST_VER = "8" ];then
         #EPELリポジトリのインストール
         start_message
         yum remove -y epel-release
