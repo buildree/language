@@ -86,6 +86,9 @@ EOF
         #python hello.py
         end_message
 
+        #ファイルの削除
+        rm -rf pyenv.sh centosonly.sh update.sh
+
         cat <<EOF
 -----------------
 Pythonのみのインストールとなります。ブラウザなどの連携はしておりません。
