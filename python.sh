@@ -40,7 +40,22 @@ if [ -e /etc/redhat-release ]; then
 
         #gitなど必要な物をインストール
         start_message
-        yum install -y gcc gcc-c++ make git openssl-devel zlib-devel readline-devel sqlite-devel bzip2-devel libffi-devel
+        yum install -y gcc gcc-c++ make git  zlib-devel readline-devel sqlite-devel bzip2-devel libffi-devel perl perl-Test-Simple perl-Test-Harness
+        curl -OL https://www.openssl.org/source/openssl-1.1.1l.tar.gz
+        end_message
+
+        #OpenSSL1.1.1をインストール
+        start_message
+        echo "tar xzf openssl-1.1.1l.tar.gz"
+        tar xzf openssl-1.1.1l.tar.gz
+        echo "cd openssl-1.1.1l/"
+        cd openssl-1.1.1l/
+        echo "./config"
+        ./config
+        echo "make"
+        make
+        echo "インストール"
+        make install
         end_message
 
 
