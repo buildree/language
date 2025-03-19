@@ -25,7 +25,7 @@ echo "======================完了======================"
 echo ""
 }
 
-#unicorn7か確認
+#Redhat系か確認
 if [ -e /etc/redhat-release ]; then
     DIST="redhat"
     DIST_VER=`cat /etc/redhat-release | sed -e "s/.*\s\([0-9]\)\..*/\1/"`
@@ -34,27 +34,36 @@ if [ -e /etc/redhat-release ]; then
       if [ $DIST_VER = "8" -o $DIST_VER = "9" ];then
         #EPELリポジトリのインストール
         start_message
+        #Keyの更新
+        rpm --import https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux
         dnf remove -y epel-release
         dnf -y install epel-release
         end_message
 
         #gitなど必要な物をインストール
         start_message
-        dnf install -y gcc gcc-c++ make git  zlib-devel readline-devel sqlite-devel bzip2-devel libffi-devel perl perl-Test-Simple perl-Test-Harness openssl-devel
+        dnf  groupinstall -y "Development Tools"
+        dnf install -y gcc gcc-c++ make git  zlib-devel readline-devel sqlite-devel bzip2-devel libffi-devel perl perl-Test-Simple perl-Test-Harness openssl-devel wget
 
 
         # dnf updateを実行
         start_message
         echo "dnf updateを実行します"
         echo ""
-        wget wget https://buildree.com/download/common/system/update.sh
+        curl -OL https://buildree.com/download/common/system/update.sh -o update.sh
         source ./update.sh
         end_message
 
+        start_message
         echo "pythonのインストールをします"
-        wget wget https://buildree.com/download/common/system/pyenv.sh
-        source ./pyenv.sh
-
+        dnf install -y python3.12 python3.12-devel
+        echo "起動時に読み込まれるようにします"
+cat >/etc/profile.d/python.sh <<'EOF'
+export PATH="/usr/bin:$PATH"
+EOF
+        source /etc/profile.d/python.sh
+        sudo ln -sf /usr/bin/python3 /usr/bin/python
+        end_message
 
         #ユーザー作成
         echo "pythonのインストールをします"
