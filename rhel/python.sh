@@ -56,7 +56,7 @@ if [ -e /etc/redhat-release ]; then
 
         start_message
         echo "pythonのインストールをします"
-        dnf install -y python3.12 python3.12-devel
+        dnf install -y python3.12 python3.12-devel python3.12-pip
         echo "起動時に読み込まれるようにします"
 cat >/etc/profile.d/python.sh <<'EOF'
 export PATH="/usr/bin:$PATH"
@@ -64,6 +64,13 @@ EOF
         source /etc/profile.d/python.sh
         sudo ln -sf /usr/bin/python3 /usr/bin/python
         end_message
+
+        start_message
+        echo "pipのアップグレードをします"
+        pip install --upgrade pip
+        end_message
+
+
 
         #ユーザー作成
         echo "pythonのインストールをします"
