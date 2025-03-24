@@ -59,14 +59,18 @@ if [ -f /etc/os-release ]; then
     DIST_ID=$ID
     DIST_VERSION_ID=$VERSION_ID
     DIST_NAME=$NAME
+    # メジャーバージョン番号の抽出（8.10から8を取得）
+    DIST_MAJOR_VERSION=$(echo "$VERSION_ID" | cut -d. -f1)
 elif [ -f /etc/redhat-release ]; then
     if grep -q "CentOS Stream" /etc/redhat-release; then
         DIST_ID="centos-stream"
-        DIST_VERSION_ID=$(grep -o -E '[0-9]+' /etc/redhat-release | head -1)
+        DIST_VERSION_ID=$(grep -o -E '[0-9]+(\.[0-9]+)?' /etc/redhat-release | head -1)
+        DIST_MAJOR_VERSION=$(echo "$DIST_VERSION_ID" | cut -d. -f1)
         DIST_NAME="CentOS Stream"
     else
         DIST_ID="redhat"
-        DIST_VERSION_ID=$(grep -o -E '[0-9]+' /etc/redhat-release | head -1)
+        DIST_VERSION_ID=$(grep -o -E '[0-9]+(\.[0-9]+)?' /etc/redhat-release | head -1)
+        DIST_MAJOR_VERSION=$(echo "$DIST_VERSION_ID" | cut -d. -f1)
         DIST_NAME=$(cat /etc/redhat-release)
     fi
 else
