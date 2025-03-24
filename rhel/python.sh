@@ -3,8 +3,6 @@
 #rootユーザーで実行 or sudo権限ユーザー
 
 <<COMMENT
-作成者：サイトラボ
-URL：https://www.site-lab.jp/
 URL：https://buildree.com/
 
 Pythonのインストールを行います
@@ -14,7 +12,7 @@ COMMENT
 # 注意書きを表示して確認を取る
 cat <<EOF
 注意点：
-  - このスクリプトは、AlmaLinux または Rocky Linux をインストールした直後のVPSやクラウドサーバーでの使用を想定しています。
+  - このスクリプトは、AlmaLinux、Rocky Linux、RHEL、CentOS Stream、Oracle Linuxをインストールした直後のVPSやクラウドサーバーでの使用を想定しています。
   - 既存の環境で実行した場合、既存の設定やアプリケーションに影響を与える可能性があります。
   - 既存環境での実行は推奨されません。
   - rootユーザーで実行する場合は、コマンド実行に十分注意してください。
@@ -55,18 +53,61 @@ echo "======================完了======================"
 echo ""
 }
 
+# ディストリビューションとバージョンの検出
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    DIST_ID=$ID
+    DIST_VERSION_ID=$VERSION_ID
+    DIST_NAME=$NAME
+elif [ -f /etc/redhat-release ]; then
+    if grep -q "CentOS Stream" /etc/redhat-release; then
+        DIST_ID="centos-stream"
+        DIST_VERSION_ID=$(grep -o -E '[0-9]+' /etc/redhat-release | head -1)
+        DIST_NAME="CentOS Stream"
+    else
+        DIST_ID="redhat"
+        DIST_VERSION_ID=$(grep -o -E '[0-9]+' /etc/redhat-release | head -1)
+        DIST_NAME=$(cat /etc/redhat-release)
+    fi
+else
+    echo "サポートされていないディストリビューションです"
+    exit 1
+fi
+
+echo "検出されたディストリビューション: $DIST_NAME $DIST_VERSION_ID"
+
 #Redhat系か確認
 if [ -e /etc/redhat-release ]; then
-    DIST="redhat"
-    DIST_VER=`cat /etc/redhat-release | sed -e "s/.*\s\([0-9]\)\..*/\1/"`
-
-    if [ $DIST = "redhat" ];then
-      if [ $DIST_VER = "8" -o $DIST_VER = "9" ];then
+    if [[ "$DIST_VERSION_ID" == "8" || "$DIST_VERSION_ID" == "9" ]]; then
         #EPELリポジトリのインストール
         start_message
         echo "EPELリポジトリをインストールします"
+        
+        # 対応するGPGキーのURLを設定
+        case $DIST_ID in
+            "almalinux")
+                GPG_KEY="https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux"
+                ;;
+            "rocky")
+                GPG_KEY="https://download.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-$DIST_VERSION_ID"
+                ;;
+            "centos-stream" | "centos")
+                GPG_KEY="https://www.centos.org/keys/RPM-GPG-KEY-CentOS-Official"
+                ;;
+            "rhel" | "redhat")
+                GPG_KEY="https://www.redhat.com/security/data/fd431d51.txt"
+                ;;
+            "ol")
+                GPG_KEY="https://yum.oracle.com/RPM-GPG-KEY-oracle-ol$DIST_VERSION_ID"
+                ;;
+            *)
+                echo "警告: 認識されないディストリビューションですが、処理を続行します"
+                GPG_KEY="https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux"
+                ;;
+        esac
+        
         #Keyの更新
-        rpm --import https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux
+        rpm --import $GPG_KEY
         dnf remove -y epel-release
         dnf -y install epel-release
         end_message
@@ -169,15 +210,14 @@ EOF
         echo "インストールが完了しました！以下のコマンドでunicornユーザーに切り替えることができます："
         echo "su -l unicorn"
 
-      else
-        echo "エラー: このスクリプトはRHEL/CentOS/AlmaLinux/Rocky Linux 8または9専用です。"
-        echo "お使いのディストリビューションはバージョン ${DIST_VER} です。"
+    else
+        echo "エラー: このスクリプトはRHEL/CentOS/AlmaLinux/Rocky Linux/Oracle Linux 8または9専用です。"
+        echo "お使いのディストリビューションはバージョン ${DIST_VERSION_ID} です。"
         exit 1
-      fi
     fi
 
 else
   echo "エラー: このスクリプトはRHELベースのディストリビューション専用です。"
-  echo "対応ディストリビューション: AlmaLinux, Rocky Linux, RHEL, CentOS"
+  echo "対応ディストリビューション: AlmaLinux, Rocky Linux, RHEL, CentOS Stream, Oracle Linux"
   exit 1
 fi
