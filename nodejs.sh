@@ -53,27 +53,27 @@ echo ""
 
 # ディストリビューションとバージョンの検出
 if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    DIST_ID=$ID
-    DIST_VERSION_ID=$VERSION_ID
-    DIST_NAME=$NAME
-    # メジャーバージョン番号の抽出（8.10から8を取得）
-    DIST_MAJOR_VERSION=$(echo "$VERSION_ID" | cut -d. -f1)
+  . /etc/os-release
+  DIST_ID=$ID
+  DIST_VERSION_ID=$VERSION_ID
+  DIST_NAME=$NAME
+  # メジャーバージョン番号の抽出（8.10から8を取得）
+  DIST_MAJOR_VERSION=$(echo "$VERSION_ID" | cut -d. -f1)
 elif [ -f /etc/redhat-release ]; then
-    if grep -q "CentOS Stream" /etc/redhat-release; then
-        DIST_ID="centos-stream"
-        DIST_VERSION_ID=$(grep -o -E '[0-9]+(\.[0-9]+)?' /etc/redhat-release | head -1)
-        DIST_MAJOR_VERSION=$(echo "$DIST_VERSION_ID" | cut -d. -f1)
-        DIST_NAME="CentOS Stream"
-    else
-        DIST_ID="redhat"
-        DIST_VERSION_ID=$(grep -o -E '[0-9]+(\.[0-9]+)?' /etc/redhat-release | head -1)
-        DIST_MAJOR_VERSION=$(echo "$DIST_VERSION_ID" | cut -d. -f1)
-        DIST_NAME=$(cat /etc/redhat-release)
-    fi
+  if grep -q "CentOS Stream" /etc/redhat-release; then
+    DIST_ID="centos-stream"
+    DIST_VERSION_ID=$(grep -o -E '[0-9]+(\.[0-9]+)?' /etc/redhat-release | head -1)
+    DIST_MAJOR_VERSION=$(echo "$DIST_VERSION_ID" | cut -d. -f1)
+    DIST_NAME="CentOS Stream"
+  else
+    DIST_ID="redhat"
+    DIST_VERSION_ID=$(grep -o -E '[0-9]+(\.[0-9]+)?' /etc/redhat-release | head -1)
+    DIST_MAJOR_VERSION=$(echo "$DIST_VERSION_ID" | cut -d. -f1)
+    DIST_NAME=$(cat /etc/redhat-release)
+  fi
 else
-    echo "サポートされていないディストリビューションです"
-    exit 1
+  echo "サポートされていないディストリビューションです"
+  exit 1
 fi
 
 echo "検出されたディストリビューション: $DIST_NAME $DIST_VERSION_ID"
@@ -89,7 +89,7 @@ if [ -e /etc/redhat-release ]; then
         
         # アップデートスクリプトをGitHubから/tmpにダウンロードして実行
         # python.shに合わせてTLSバージョンを1.2に変更
-        curl --tlsv1.2 --proto https -o /tmp/update.sh https://raw.githubusercontent.com/site-lab/common/main/system/update.sh
+        curl --tlsv1.3 --proto https -o /tmp/update.sh https://raw.githubusercontent.com/site-lab/common/main/system/update.sh
         chmod +x /tmp/update.sh
         source /tmp/update.sh
         # 実行後に削除
@@ -124,7 +124,7 @@ if [ -e /etc/redhat-release ]; then
         echo ""
         
         # ユーザー作成スクリプトを/tmpにダウンロードして実行
-        curl --tlsv1.2 --proto https -o /tmp/useradd.sh https://raw.githubusercontent.com/site-lab/common/main/user/useradd.sh
+        curl --tlsv1.3 --proto https -o /tmp/useradd.sh https://raw.githubusercontent.com/site-lab/common/main/user/useradd.sh
         chmod +x /tmp/useradd.sh
         source /tmp/useradd.sh
         # 実行後に削除
