@@ -41,6 +41,7 @@ fi
 echo "インストールを開始します..."
 echo ""
 
+# 初期設定で関数やハッシュ値をいれていく
 start_message(){
 echo ""
 echo "======================開始======================"
@@ -52,6 +53,14 @@ echo ""
 echo "======================完了======================"
 echo ""
 }
+
+# リポジトリのシェルファイルの格納場所
+repository_file_path="/tmp/repository.sh"
+update_file_path="/tmp/update.sh"
+
+# リポジトリのハッシュ値/SHA-512を採用
+repository_hash="718a0ef5cb070a9b69bf8aeb6f0f58dc57c39fcba866e1d2660bc2cfad5d35a36b9dc29bf7fe52e814f8f696b96bd57e8231d3ad19f2bd496320bd87c765b777"
+update_hash="4137c54c2d1cb3108d2d38598b2af617807622ceaddec06f7b30db0511adea67e002a028ac15568aca6d12aeab31cd3910b3e0a0441aa61b7b6a899dd6281533"
 
 # ディストリビューションとバージョンの検出
 if [ -f /etc/os-release ]; then
@@ -86,8 +95,30 @@ if [ -e /etc/redhat-release ] && [[ "$DIST_MAJOR_VERSION" -eq 8 || "$DIST_MAJOR_
   start_message
   echo "EPELリポジトリをインストールします"
   curl --tlsv1.3 --proto https -o /tmp/repository.sh https://raw.githubusercontent.com/buildree/common/main/system/repository.sh
+
+# ファイルの存在を確認
+if [ ! -f "$repository_file_path" ]; then
+  echo "エラー: ファイルが見つかりません: $repository_file_path"
+  exit 1
+fi
+
+# ファイルのハッシュ値を計算
+actual_hash=$(sha512sum "$repository_file_path" 2>/dev/null | awk '{print $1}')
+
+# ハッシュ値を比較
+if [ "$actual_hash" == "$repository_hash" ]; then
+  echo "ハッシュ値は一致します。"
+  echo "このスクリプトは安全のためインストール作業を実施します"
   chmod +x /tmp/repository.sh
   source /tmp/repository.sh
+    # 実行後に削除
+  rm -f /tmp/update.sh
+else
+  echo "ハッシュ値が一致しません！"
+  echo "期待されるハッシュ値: $repository_hash"
+  echo "実際のハッシュ値: $actual_hash"
+  exit 1 #一致しない場合は終了
+fi
   end_message
 
   # 最小限の必要なパッケージのインストール
@@ -101,10 +132,32 @@ if [ -e /etc/redhat-release ] && [[ "$DIST_MAJOR_VERSION" -eq 8 || "$DIST_MAJOR_
   echo "システムをアップデートします"
   # アップデートスクリプトをGitHubから/tmpにダウンロードして実行
   curl --tlsv1.3 --proto https -o /tmp/update.sh https://raw.githubusercontent.com/buildree/common/main/system/update.sh
+
+  # ファイルの存在を確認
+if [ ! -f "$update_file_path" ]; then
+  echo "エラー: ファイルが見つかりません: $update_file_path"
+  exit 1
+fi
+
+# ファイルのハッシュ値を計算
+actual_hash=$(sha512sum "$update_file_path" 2>/dev/null | awk '{print $1}')
+
+# ハッシュ値を比較
+if [ "$actual_hash" == "$update_hash" ]; then
+  echo "ハッシュ値は一致します。"
+  echo "このスクリプトは安全のためインストール作業を実施します"
   chmod +x /tmp/update.sh
   source /tmp/update.sh
   # 実行後に削除
   rm -f /tmp/update.sh
+else
+  echo "ハッシュ値が一致しません！"
+  echo "期待されるハッシュ値: $update_hash"
+  echo "実際のハッシュ値: $actual_hash"
+  exit 1 #一致しない場合は終了
+fi
+  end_message
+
   end_message
 
   start_message
