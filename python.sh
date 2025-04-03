@@ -54,18 +54,20 @@ echo "======================完了======================"
 echo ""
 }
 
+# ハッシュ値ファイルのパス
+hash_file="/tmp/hashes.txt"
+# 期待されるハッシュ値
+expected_sha3_512="9b74211eae1f4929ac529399b59725f6417bc125b387720bfcf7676339dfed34982b23a1b8993641b5d3e1a70aface8e5f3f303fb68255ea4ca0e0251d567d9b"
+
 # リポジトリのシェルファイルの格納場所
 repository_file_path="/tmp/repository.sh"
 update_file_path="/tmp/update.sh"
 
-# リポジトリのハッシュ値/SHA-512を採用
-repository_hash="718a0ef5cb070a9b69bf8aeb6f0f58dc57c39fcba866e1d2660bc2cfad5d35a36b9dc29bf7fe52e814f8f696b96bd57e8231d3ad19f2bd496320bd87c765b777"
-update_hash="4137c54c2d1cb3108d2d38598b2af617807622ceaddec06f7b30db0511adea67e002a028ac15568aca6d12aeab31cd3910b3e0a0441aa61b7b6a899dd6281533"
-
-
-# リポジトリのハッシュ値/SHA3-512を採用
-repository_hash_sha3="376eebb05865338b3a0576404bac5855e9194a956aab58fba93da14083c52bd2d3748217e38e085d0a19f23b5dc32d7ccddc40dbb84372817e0fa8420b8bcd56"
-update_hash_sha3="f0d79d0d520537e61a0c8d8dd94c9bf517212c82021bc28b95089a59666af89726588884b022e381ca4b6d1737be709eee201e28949f866f79e4e3c9adb713ec"
+# ハッシュ値ファイルの読み込み
+repository_hash=$(grep "^repository_hash_sha512=" "$hash_file" | cut -d '=' -f 2)
+update_hash=$(grep "^update_hash_sha512=" "$hash_file" | cut -d '=' -f 2)
+repository_hash_sha3=$(grep "^repository_hash_sha3_512=" "$hash_file" | cut -d '=' -f 2)
+update_hash_sha3=$(grep "^update_hash_sha3_512=" "$hash_file" | cut -d '=' -f 2)
 
 # ディストリビューションとバージョンの検出
 if [ -f /etc/os-release ]; then
@@ -96,10 +98,43 @@ echo "検出されたディストリビューション: $DIST_NAME $DIST_VERSION
 
 # Redhat系で8または9の場合のみ処理を実行
 if [ -e /etc/redhat-release ] && [[ "$DIST_MAJOR_VERSION" -eq 8 || "$DIST_MAJOR_VERSION" -eq 9 ]]; then
+
+# ハッシュファイルのダウンロード
+start_message
+if ! curl --tlsv1.3 --proto https -o "$hash_file" https://raw.githubusercontent.com/buildree/common/main/other/hashes.txt; then
+    echo "エラー: ファイルのダウンロードに失敗しました"
+    exit 1
+fi
+
+# ファイルのSHA3-512ハッシュ値を計算
+actual_sha3_512=$(sha3sum -a 512 "$hash_file" 2>/dev/null | awk '{print $1}')
+
+# sha3sumコマンドが存在しない場合の代替手段
+if [ -z "$actual_sha3_512" ]; then
+    actual_sha3_512=$(openssl dgst -sha3-512 "$hash_file" 2>/dev/null | awk '{print $2}')
+
+    if [ -z "$actual_sha3_512" ]; then
+        echo "エラー: SHA3-512ハッシュの計算に失敗しました。sha3sumまたはOpenSSLがインストールされていることを確認してください。"
+        rm -f "$hash_file"
+        exit 1
+    fi
+fi
+
+# ハッシュ値を比較
+if [ "$actual_sha3_512" == "$expected_sha3_512" ]; then
+    echo "ハッシュ値は一致します。ファイルを保存します。"
+    # 必要に応じてファイルの保存処理を追加
+else
+    echo "ハッシュ値が一致しません。ファイルを削除します。"
+    echo "期待されるSHA3-512: $expected_sha3_512"
+    echo "実際のSHA3-512: $actual_sha3_512"
+    rm -f "$hash_file"
+    exit 1
+fi
+end_message
 # EPELリポジトリのインストール
 start_message
 echo "EPELリポジトリをインストールします"
-
 # ファイルをダウンロード
 if ! curl --tlsv1.3 --proto https -o "$repository_file_path" https://raw.githubusercontent.com/buildree/common/main/system/repository.sh; then
   echo "エラー: ファイルのダウンロードに失敗しました"
