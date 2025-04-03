@@ -54,20 +54,14 @@ echo "======================完了======================"
 echo ""
 }
 
-# ハッシュ値ファイルのパス
 hash_file="/tmp/hashes.txt"
-# 期待されるハッシュ値
-expected_sha3_512="9b74211eae1f4929ac529399b59725f6417bc125b387720bfcf7676339dfed34982b23a1b8993641b5d3e1a70aface8e5f3f303fb68255ea4ca0e0251d567d9b"
+expected_sha3_512="bddc1c5783ce4f81578362144f2b145f7261f421a405ed833d04b0774a5f90e6541a0eec5823a96efd9d3b8990f32533290cbeffdd763dc3dd43811c6b45cfbe"
 
 # リポジトリのシェルファイルの格納場所
 repository_file_path="/tmp/repository.sh"
 update_file_path="/tmp/update.sh"
+useradd_file_path="/tmp/useradd.sh"
 
-# ハッシュ値ファイルの読み込み
-repository_hash=$(grep "^repository_hash_sha512=" "$hash_file" | cut -d '=' -f 2)
-update_hash=$(grep "^update_hash_sha512=" "$hash_file" | cut -d '=' -f 2)
-repository_hash_sha3=$(grep "^repository_hash_sha3_512=" "$hash_file" | cut -d '=' -f 2)
-update_hash_sha3=$(grep "^update_hash_sha3_512=" "$hash_file" | cut -d '=' -f 2)
 
 # ディストリビューションとバージョンの検出
 if [ -f /etc/os-release ]; then
@@ -108,7 +102,6 @@ fi
 
 # ファイルのSHA3-512ハッシュ値を計算
 actual_sha3_512=$(sha3sum -a 512 "$hash_file" 2>/dev/null | awk '{print $1}')
-
 # sha3sumコマンドが存在しない場合の代替手段
 if [ -z "$actual_sha3_512" ]; then
     actual_sha3_512=$(openssl dgst -sha3-512 "$hash_file" 2>/dev/null | awk '{print $2}')
@@ -123,7 +116,14 @@ fi
 # ハッシュ値を比較
 if [ "$actual_sha3_512" == "$expected_sha3_512" ]; then
     echo "ハッシュ値は一致します。ファイルを保存します。"
-    # 必要に応じてファイルの保存処理を追加
+    
+    # ハッシュ値ファイルの読み込み - ダウンロード成功後に行う
+    repository_hash=$(grep "^repository_hash_sha512=" "$hash_file" | cut -d '=' -f 2)
+    update_hash=$(grep "^update_hash_sha512=" "$hash_file" | cut -d '=' -f 2)
+    repository_hash_sha3=$(grep "^repository_hash_sha3_512=" "$hash_file" | cut -d '=' -f 2)
+    update_hash_sha3=$(grep "^update_hash_sha3_512=" "$hash_file" | cut -d '=' -f 2)
+    useradd_hash=$(grep "^useradd_hash_sha512=" "$hash_file" | cut -d '=' -f 2)
+    useradd_hash_sha3=$(grep "^useradd_hash_sha3_512=" "$hash_file" | cut -d '=' -f 2)
 else
     echo "ハッシュ値が一致しません。ファイルを削除します。"
     echo "期待されるSHA3-512: $expected_sha3_512"
@@ -132,6 +132,7 @@ else
     exit 1
 fi
 end_message
+
 # EPELリポジトリのインストール
 start_message
 echo "EPELリポジトリをインストールします"
@@ -288,16 +289,69 @@ EOF
   pip install --upgrade pip
   end_message
 
-  # ユーザーを作成
-  start_message
-  echo "unicornユーザーを作成します"
-  # ユーザー作成スクリプトを/tmpにダウンロードして実行
-  curl --tlsv1.3 --proto https -o /tmp/useradd.sh https://raw.githubusercontent.com/buildree/common/main/user/useradd.sh
-  chmod +x /tmp/useradd.sh
-  source /tmp/useradd.sh
+# ユーザーを作成
+start_message
+echo "unicornユーザーを作成します"
+
+
+# ユーザー作成スクリプトをダウンロード
+if ! curl --tlsv1.3 --proto https -o "$useradd_file_path" https://raw.githubusercontent.com/buildree/common/main/user/useradd.sh; then
+  echo "エラー: ファイルのダウンロードに失敗しました"
+  exit 1
+fi
+
+# ファイルの存在を確認
+if [ ! -f "$useradd_file_path" ]; then
+  echo "エラー: ダウンロードしたファイルが見つかりません: $useradd_file_path"
+  exit 1
+fi
+
+# ファイルのSHA512ハッシュ値を計算
+actual_sha512=$(sha512sum "$useradd_file_path" 2>/dev/null | awk '{print $1}')
+if [ -z "$actual_sha512" ]; then
+  echo "エラー: SHA512ハッシュの計算に失敗しました"
+  exit 1
+fi
+
+# ファイルのSHA3-512ハッシュ値を計算
+actual_sha3_512=$(sha3sum -a 512 "$useradd_file_path" 2>/dev/null | awk '{print $1}')
+
+# システムにsha3sumがない場合の代替手段
+if [ -z "$actual_sha3_512" ]; then
+  # OpenSSLを使用する方法
+  actual_sha3_512=$(openssl dgst -sha3-512 "$useradd_file_path" 2>/dev/null | awk '{print $2}')
+  
+  # それでも取得できない場合はエラー
+  if [ -z "$actual_sha3_512" ]; then
+    echo "エラー: SHA3-512ハッシュの計算に失敗しました。sha3sumまたはOpenSSLがインストールされていることを確認してください"
+    exit 1
+  fi
+fi
+
+# 両方のハッシュ値が一致した場合のみ処理を続行
+if [ "$actual_sha512" == "$useradd_hash" ] && [ "$actual_sha3_512" == "$useradd_hash_sha3" ]; then
+  echo "ハッシュ検証が成功しました。ユーザー作成を続行します。"
+  
+  # 実行権限を付与
+  chmod +x "$useradd_file_path"
+  
+  # スクリプトを実行
+  source "$useradd_file_path"
+  
   # 実行後に削除
-  rm -f /tmp/useradd.sh
-  end_message
+  rm -f "$useradd_file_path"
+else
+  echo "エラー: ハッシュ検証に失敗しました。"
+  echo "期待されるSHA512: $useradd_hash"
+  echo "実際のSHA512: $actual_sha512"
+  echo "期待されるSHA3-512: $useradd_hash_sha3"
+  echo "実際のSHA3-512: $actual_sha3_512"
+  
+  # セキュリティリスクを軽減するため、検証に失敗したファイルを削除
+  rm -f "$useradd_file_path"
+  exit 1
+fi
+end_message
 
   #サンプルファイル作成
   start_message
