@@ -62,6 +62,11 @@ update_file_path="/tmp/update.sh"
 repository_hash="718a0ef5cb070a9b69bf8aeb6f0f58dc57c39fcba866e1d2660bc2cfad5d35a36b9dc29bf7fe52e814f8f696b96bd57e8231d3ad19f2bd496320bd87c765b777"
 update_hash="4137c54c2d1cb3108d2d38598b2af617807622ceaddec06f7b30db0511adea67e002a028ac15568aca6d12aeab31cd3910b3e0a0441aa61b7b6a899dd6281533"
 
+
+# リポジトリのハッシュ値/SHA3-512を採用
+repository_hash_sha3="376eebb05865338b3a0576404bac5855e9194a956aab58fba93da14083c52bd2d3748217e38e085d0a19f23b5dc32d7ccddc40dbb84372817e0fa8420b8bcd56"
+update_hash_sha3="f0d79d0d520537e61a0c8d8dd94c9bf517212c82021bc28b95089a59666af89726588884b022e381ca4b6d1737be709eee201e28949f866f79e4e3c9adb713ec"
+
 # ディストリビューションとバージョンの検出
 if [ -f /etc/os-release ]; then
   . /etc/os-release
@@ -91,35 +96,69 @@ echo "検出されたディストリビューション: $DIST_NAME $DIST_VERSION
 
 # Redhat系で8または9の場合のみ処理を実行
 if [ -e /etc/redhat-release ] && [[ "$DIST_MAJOR_VERSION" -eq 8 || "$DIST_MAJOR_VERSION" -eq 9 ]]; then
-  #EPELリポジトリのインストール
-  start_message
-  echo "EPELリポジトリをインストールします"
-  curl --tlsv1.3 --proto https -o /tmp/repository.sh https://raw.githubusercontent.com/buildree/common/main/system/repository.sh
+# EPELリポジトリのインストール
+start_message
+echo "EPELリポジトリをインストールします"
 
-# ファイルの存在を確認
-if [ ! -f "$repository_file_path" ]; then
-  echo "エラー: ファイルが見つかりません: $repository_file_path"
+# ファイルをダウンロード
+if ! curl --tlsv1.3 --proto https -o "$repository_file_path" https://raw.githubusercontent.com/buildree/common/main/system/repository.sh; then
+  echo "エラー: ファイルのダウンロードに失敗しました"
   exit 1
 fi
 
-# ファイルのハッシュ値を計算
-actual_hash=$(sha512sum "$repository_file_path" 2>/dev/null | awk '{print $1}')
-
-# ハッシュ値を比較
-if [ "$actual_hash" == "$repository_hash" ]; then
-  echo "ハッシュ値は一致します。"
-  echo "このスクリプトは安全のためインストール作業を実施します"
-  chmod +x /tmp/repository.sh
-  source /tmp/repository.sh
-    # 実行後に削除
-  rm -f /tmp/update.sh
-else
-  echo "ハッシュ値が一致しません！"
-  echo "期待されるハッシュ値: $repository_hash"
-  echo "実際のハッシュ値: $actual_hash"
-  exit 1 #一致しない場合は終了
+# ファイルの存在を確認
+if [ ! -f "$repository_file_path" ]; then
+  echo "エラー: ダウンロードしたファイルが見つかりません: $repository_file_path"
+  exit 1
 fi
-  end_message
+
+# ファイルのSHA512ハッシュ値を計算
+actual_sha512=$(sha512sum "$repository_file_path" 2>/dev/null | awk '{print $1}')
+if [ -z "$actual_sha512" ]; then
+  echo "エラー: SHA512ハッシュの計算に失敗しました"
+  exit 1
+fi
+
+# ファイルのSHA3-512ハッシュ値を計算
+# SHA3はシステムによってはsha3sumコマンドが必要
+actual_sha3_512=$(sha3sum -a 512 "$repository_file_path" 2>/dev/null | awk '{print $1}')
+
+# システムにsha3sumがない場合の代替手段
+if [ -z "$actual_sha3_512" ]; then
+  # OpenSSLを使用する方法
+  actual_sha3_512=$(openssl dgst -sha3-512 "$repository_file_path" 2>/dev/null | awk '{print $2}')
+  
+  # それでも取得できない場合はエラー
+  if [ -z "$actual_sha3_512" ]; then
+    echo "エラー: SHA3-512ハッシュの計算に失敗しました。sha3sumまたはOpenSSLがインストールされていることを確認してください"
+    exit 1
+  fi
+fi
+
+# 両方のハッシュ値が一致した場合のみ処理を続行
+if [ "$actual_sha512" == "$repository_hash" ] && [ "$actual_sha3_512" == "$repository_hash_sha3" ]; then
+  echo "ハッシュ検証が成功しました。インストールを続行します。"
+  
+  # 実行権限を付与
+  chmod +x "$repository_file_path"
+  
+  # スクリプトを実行
+  source "$repository_file_path"
+  
+  # 実行後に削除
+  rm -f "$repository_file_path"
+else
+  echo "エラー: ハッシュ検証に失敗しました。"
+  echo "期待されるSHA512: $repository_hash"
+  echo "実際のSHA512: $actual_sha512"
+  echo "期待されるSHA3-512: $repository_hash_sha3"
+  echo "実際のSHA3-512: $actual_sha3_512"
+  
+  # セキュリティリスクを軽減するため、検証に失敗したファイルを削除
+  rm -f "$repository_file_path"
+  exit 1
+fi  
+end_message
 
   # 最小限の必要なパッケージのインストール
   start_message
@@ -127,38 +166,69 @@ fi
   dnf install -y gcc gcc-c++ make automake openssl openssl-devel
   end_message
 
-  # dnf updateを実行
-  start_message
-  echo "システムをアップデートします"
-  # アップデートスクリプトをGitHubから/tmpにダウンロードして実行
-  curl --tlsv1.3 --proto https -o /tmp/update.sh https://raw.githubusercontent.com/buildree/common/main/system/update.sh
-
-  # ファイルの存在を確認
-if [ ! -f "$update_file_path" ]; then
-  echo "エラー: ファイルが見つかりません: $update_file_path"
+# dnf updateを実行
+start_message
+echo "システムをアップデートします"
+# アップデートスクリプトをGitHubから/tmpにダウンロードして実行
+if ! curl --tlsv1.3 --proto https -o "$update_file_path" https://raw.githubusercontent.com/buildree/common/main/system/update.sh; then
+  echo "エラー: ファイルのダウンロードに失敗しました"
   exit 1
 fi
 
-# ファイルのハッシュ値を計算
-actual_hash=$(sha512sum "$update_file_path" 2>/dev/null | awk '{print $1}')
+# ファイルの存在を確認
+if [ ! -f "$update_file_path" ]; then
+  echo "エラー: ダウンロードしたファイルが見つかりません: $update_file_path"
+  exit 1
+fi
 
-# ハッシュ値を比較
-if [ "$actual_hash" == "$update_hash" ]; then
-  echo "ハッシュ値は一致します。"
+# ファイルのSHA512ハッシュ値を計算
+actual_sha512=$(sha512sum "$update_file_path" 2>/dev/null | awk '{print $1}')
+if [ -z "$actual_sha512" ]; then
+  echo "エラー: SHA512ハッシュの計算に失敗しました"
+  exit 1
+fi
+
+# ファイルのSHA3-512ハッシュ値を計算
+actual_sha3_512=$(sha3sum -a 512 "$update_file_path" 2>/dev/null | awk '{print $1}')
+
+# システムにsha3sumがない場合の代替手段
+if [ -z "$actual_sha3_512" ]; then
+  # OpenSSLを使用する方法
+  actual_sha3_512=$(openssl dgst -sha3-512 "$update_file_path" 2>/dev/null | awk '{print $2}')
+  
+  # それでも取得できない場合はエラー
+  if [ -z "$actual_sha3_512" ]; then
+    echo "エラー: SHA3-512ハッシュの計算に失敗しました。sha3sumまたはOpenSSLがインストールされていることを確認してください"
+    exit 1
+  fi
+fi
+
+# 両方のハッシュ値が一致した場合のみ処理を続行
+if [ "$actual_sha512" == "$update_hash" ] && [ "$actual_sha3_512" == "$update_hash_sha3" ]; then
+  echo "両方のハッシュ値が一致します。"
   echo "このスクリプトは安全のためインストール作業を実施します"
-  chmod +x /tmp/update.sh
-  source /tmp/update.sh
+  
+  # 実行権限を付与
+  chmod +x "$update_file_path"
+  
+  # スクリプトを実行
+  source "$update_file_path"
+  
   # 実行後に削除
-  rm -f /tmp/update.sh
+  rm -f "$update_file_path"
 else
   echo "ハッシュ値が一致しません！"
-  echo "期待されるハッシュ値: $update_hash"
-  echo "実際のハッシュ値: $actual_hash"
+  echo "期待されるSHA512: $update_hash"
+  echo "実際のSHA512: $actual_sha512"
+  echo "期待されるSHA3-512: $update_hash_sha3"
+  echo "実際のSHA3-512: $actual_sha3_512"
+  
+  # セキュリティリスクを軽減するため、検証に失敗したファイルを削除
+  rm -f "$update_file_path"
   exit 1 #一致しない場合は終了
 fi
   end_message
 
-  end_message
 
   start_message
   echo "Python 3.12 をインストールします"
