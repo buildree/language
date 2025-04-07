@@ -58,7 +58,6 @@ hash_file="/tmp/hashes.txt"
 expected_sha3_512="bddc1c5783ce4f81578362144f2b145f7261f421a405ed833d04b0774a5f90e6541a0eec5823a96efd9d3b8990f32533290cbeffdd763dc3dd43811c6b45cfbe"
 
 # リポジトリのシェルファイルの格納場所
-repository_file_path="/tmp/repository.sh"
 update_file_path="/tmp/update.sh"
 useradd_file_path="/tmp/useradd.sh"
 
@@ -133,68 +132,6 @@ else
 fi
 end_message
 
-# EPELリポジトリのインストール
-start_message
-echo "EPELリポジトリをインストールします"
-# ファイルをダウンロード
-if ! curl --tlsv1.3 --proto https -o "$repository_file_path" https://raw.githubusercontent.com/buildree/common/main/system/repository.sh; then
-  echo "エラー: ファイルのダウンロードに失敗しました"
-  exit 1
-fi
-
-# ファイルの存在を確認
-if [ ! -f "$repository_file_path" ]; then
-  echo "エラー: ダウンロードしたファイルが見つかりません: $repository_file_path"
-  exit 1
-fi
-
-# ファイルのSHA512ハッシュ値を計算
-actual_sha512=$(sha512sum "$repository_file_path" 2>/dev/null | awk '{print $1}')
-if [ -z "$actual_sha512" ]; then
-  echo "エラー: SHA512ハッシュの計算に失敗しました"
-  exit 1
-fi
-
-# ファイルのSHA3-512ハッシュ値を計算
-# SHA3はシステムによってはsha3sumコマンドが必要
-actual_sha3_512=$(sha3sum -a 512 "$repository_file_path" 2>/dev/null | awk '{print $1}')
-
-# システムにsha3sumがない場合の代替手段
-if [ -z "$actual_sha3_512" ]; then
-  # OpenSSLを使用する方法
-  actual_sha3_512=$(openssl dgst -sha3-512 "$repository_file_path" 2>/dev/null | awk '{print $2}')
-  
-  # それでも取得できない場合はエラー
-  if [ -z "$actual_sha3_512" ]; then
-    echo "エラー: SHA3-512ハッシュの計算に失敗しました。sha3sumまたはOpenSSLがインストールされていることを確認してください"
-    exit 1
-  fi
-fi
-
-# 両方のハッシュ値が一致した場合のみ処理を続行
-if [ "$actual_sha512" == "$repository_hash" ] && [ "$actual_sha3_512" == "$repository_hash_sha3" ]; then
-  echo "ハッシュ検証が成功しました。インストールを続行します。"
-  
-  # 実行権限を付与
-  chmod +x "$repository_file_path"
-  
-  # スクリプトを実行
-  source "$repository_file_path"
-  
-  # 実行後に削除
-  rm -f "$repository_file_path"
-else
-  echo "エラー: ハッシュ検証に失敗しました。"
-  echo "期待されるSHA512: $repository_hash"
-  echo "実際のSHA512: $actual_sha512"
-  echo "期待されるSHA3-512: $repository_hash_sha3"
-  echo "実際のSHA3-512: $actual_sha3_512"
-  
-  # セキュリティリスクを軽減するため、検証に失敗したファイルを削除
-  rm -f "$repository_file_path"
-  exit 1
-fi  
-end_message
 
   # 最小限の必要なパッケージのインストール
   start_message
